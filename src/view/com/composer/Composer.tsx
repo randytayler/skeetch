@@ -130,11 +130,15 @@ import {CircleInfo_Stroke2_Corner0_Rounded as CircleInfoIcon} from '#/components
 import {EmojiArc_Stroke2_Corner0_Rounded as EmojiSmileIcon} from '#/components/icons/Emoji'
 import {PlusLarge_Stroke2_Corner0_Rounded as PlusIcon} from '#/components/icons/Plus'
 import {TimesLarge_Stroke2_Corner0_Rounded as XIcon} from '#/components/icons/Times'
+import {Portal} from '#/components/Portal'
 import {LazyQuoteEmbed} from '#/components/Post/Embed/LazyQuoteEmbed'
 import * as Prompt from '#/components/Prompt'
 import * as Toast from '#/components/Toast'
 import {Text} from '#/components/Typography'
 import {useAnalytics} from '#/analytics'
+import {DrawButton} from '#/draw/components/DrawButton'
+import {DrawOverlay} from '#/draw/components/DrawOverlay'
+import {type ExportResult} from '#/draw/engine/export'
 import {
   IS_ANDROID,
   IS_IOS,
@@ -2094,6 +2098,7 @@ function ComposerFooter({
   post,
   dispatch,
   showAddButton,
+  onError,
   onSelectVideo,
   onAddPost,
   currentLanguages,
@@ -2149,6 +2154,34 @@ function ComposerFooter({
   }
 
   const onImageAdd = useAddImagesWithCap(images.length, dispatch)
+
+  const [isDrawing, setIsDrawing] = useState(false)
+
+  /*
+   * A finished drawing enters the post as an ordinary image (§8.1) — the same
+   * path as the camera and picker. Stroke data never leaves the device (§2).
+   */
+  const onDrawDone = useCallback(
+    async (result: ExportResult) => {
+      setIsDrawing(false)
+      try {
+        onImageAdd([
+          await createComposerImage({
+            path: result.uri,
+            width: result.width,
+            height: result.height,
+            mime: result.format === 'png' ? 'image/png' : 'image/jpeg',
+          }),
+        ])
+      } catch (e) {
+        logger.error('failed to attach drawing', {
+          safeMessage: e instanceof Error ? e.message : String(e),
+        })
+        onError(l`Could not attach your drawing.`)
+      }
+    },
+    [onImageAdd, onError, l],
+  )
 
   const onSelectGif = useCallback(
     (gif: Gif) => {
@@ -2238,6 +2271,14 @@ function ComposerFooter({
                 }
                 onAdd={onImageAdd}
               />
+              <DrawButton
+                disabled={
+                  media?.type === 'images' || media?.type === 'gallery'
+                    ? isMaxImages
+                    : !!media
+                }
+                onPress={() => setIsDrawing(true)}
+              />
               <SelectGifBtn onSelectGif={onSelectGif} disabled={!!media} />
               {IS_WEB && gtPhone ? (
                 <EmojiPicker.Root nextFocusRef={textInputRef}>
@@ -2283,6 +2324,22 @@ function ComposerFooter({
           style={{width: 65}}
         />
       </View>
+      {/* Portaled above the composer; nesting here keeps the upstream diff small. */}
+      {isDrawing && (
+        <Portal>
+          <DrawOverlay
+            onDone={result => void onDrawDone(result)}
+            onCancel={() => setIsDrawing(false)}
+            onError={e => {
+              setIsDrawing(false)
+              logger.error('drawing export failed', {
+                safeMessage: e instanceof Error ? e.message : String(e),
+              })
+              onError(l`Could not save your drawing.`)
+            }}
+          />
+        </Portal>
+      )}
     </View>
   )
 }

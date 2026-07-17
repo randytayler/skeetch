@@ -24,29 +24,34 @@ const SIZES: {label: string; value: number}[] = [
 ]
 
 export type ToolbarProps = {
-  onExport: () => void
   brush: Brush
   canUndo: boolean
   canRedo: boolean
+  /** Done is meaningless with an empty canvas, so it stays disabled until there is ink. */
+  hasStrokes: boolean
   onColor: (color: string) => void
   onSize: (size: number) => void
   onToggleErase: () => void
   onUndo: () => void
   onRedo: () => void
   onClear: () => void
+  onDone: () => void
+  onCancel: () => void
 }
 
 export function Toolbar({
   brush,
   canUndo,
   canRedo,
+  hasStrokes,
   onColor,
   onSize,
   onToggleErase,
   onUndo,
   onRedo,
   onClear,
-  onExport,
+  onDone,
+  onCancel,
 }: ToolbarProps) {
   const erasing = brush.mode === 'erase'
   return (
@@ -113,12 +118,26 @@ export function Toolbar({
           style={styles.btn}>
           <Text style={styles.btnText}>Clear</Text>
         </Pressable>
+      </View>
+      <View style={styles.row}>
         <Pressable
           accessibilityRole="button"
-          testID="draw-export"
-          onPress={onExport}
+          testID="draw-cancel"
+          onPress={onCancel}
           style={styles.btn}>
-          <Text style={styles.btnText}>Export</Text>
+          <Text style={styles.btnText}>Cancel</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          testID="draw-done"
+          onPress={onDone}
+          disabled={!hasStrokes}
+          style={[
+            styles.btn,
+            styles.btnPrimary,
+            !hasStrokes && styles.btnDisabled,
+          ]}>
+          <Text style={[styles.btnText, styles.btnPrimaryText]}>Done</Text>
         </Pressable>
       </View>
     </View>
@@ -156,6 +175,12 @@ const styles = StyleSheet.create({
   },
   btnActive: {
     backgroundColor: '#2563eb',
+  },
+  btnPrimary: {
+    backgroundColor: '#2563eb',
+  },
+  btnPrimaryText: {
+    color: '#ffffff',
   },
   btnDisabled: {
     opacity: 0.4,

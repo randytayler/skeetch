@@ -42,8 +42,19 @@ export function useDrawingEngine(canvasSize: number) {
   const [history, setHistory] = useState<HistoryState>(emptyHistory)
   const [brush, setBrush] = useState<Brush>(DEFAULT_BRUSH)
 
-  // Display scale (viewSize / canvasSize); DrawScreen updates it on layout.
+  // Display scale (viewSize / canvasSize); the surface reports it on layout.
   const scale = useSharedValue(1)
+
+  /**
+   * Report the on-screen size of the (square) canvas. Kept as a setter rather
+   * than exposing the shared value so callers never mutate engine internals.
+   */
+  const setViewSize = useCallback(
+    (size: number) => {
+      scale.value = size / canvasSize
+    },
+    [scale, canvasSize],
+  )
 
   const onStrokeEnd = useCallback(
     (points: Point[]) => {
@@ -81,7 +92,7 @@ export function useDrawingEngine(canvasSize: number) {
       brush,
       gesture,
       livePath,
-      scale,
+      setViewSize,
       canvasSize,
       canUndo: canUndo(history),
       canRedo: canRedo(history),
@@ -98,7 +109,7 @@ export function useDrawingEngine(canvasSize: number) {
       brush,
       gesture,
       livePath,
-      scale,
+      setViewSize,
       canvasSize,
       undo,
       redo,
