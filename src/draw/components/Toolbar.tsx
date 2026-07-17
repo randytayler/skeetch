@@ -24,6 +24,7 @@ const SIZES: {label: string; value: number}[] = [
 ]
 
 export type ToolbarProps = {
+  onExport: () => void
   brush: Brush
   canUndo: boolean
   canRedo: boolean
@@ -45,6 +46,7 @@ export function Toolbar({
   onUndo,
   onRedo,
   onClear,
+  onExport,
 }: ToolbarProps) {
   const erasing = brush.mode === 'erase'
   return (
@@ -110,6 +112,13 @@ export function Toolbar({
           onPress={onClear}
           style={styles.btn}>
           <Text style={styles.btnText}>Clear</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          testID="draw-export"
+          onPress={onExport}
+          style={styles.btn}>
+          <Text style={styles.btnText}>Export</Text>
         </Pressable>
       </View>
     </View>
