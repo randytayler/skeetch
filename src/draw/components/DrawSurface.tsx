@@ -1,11 +1,12 @@
 import {useState} from 'react'
 import {type LayoutChangeEvent, StyleSheet, View} from 'react-native'
 import {GestureDetector} from 'react-native-gesture-handler'
+import {type SkImage} from '@shopify/react-native-skia'
 
 import {Toolbar} from '#/draw/components/Toolbar'
 import {exportDrawing, type ExportResult} from '#/draw/engine/export'
 import {DrawingCanvas} from '#/draw/engine/render'
-import {DEFAULT_CANVAS_SIZE} from '#/draw/engine/types'
+import {type CanvasSize, DEFAULT_CANVAS} from '#/draw/engine/types'
 import {useDrawingEngine} from '#/draw/engine/useDrawingEngine'
 
 /**
@@ -21,26 +22,30 @@ export function DrawSurface({
   onDone,
   onCancel,
   onError,
-  canvasSize = DEFAULT_CANVAS_SIZE,
+  canvas = DEFAULT_CANVAS,
+  backgroundImage,
 }: {
   onDone: (result: ExportResult) => void
   onCancel: () => void
   onError?: (e: unknown) => void
-  canvasSize?: number
+  canvas?: CanvasSize
+  /** Locked source photo drawn beneath the ink (§8.2). */
+  backgroundImage?: SkImage | null
 }) {
-  const engine = useDrawingEngine(canvasSize)
-  const [viewSize, setViewSize] = useState(0)
+  const engine = useDrawingEngine(canvas)
+  const [displayScale, setDisplayScale] = useState(0)
 
   const onLayout = (e: LayoutChangeEvent) => {
     const {width, height} = e.nativeEvent.layout
-    const size = Math.floor(Math.min(width, height))
-    setViewSize(size)
-    engine.setViewSize(size)
+    // Fit the canvas into the available area. Uniform, so nothing is distorted.
+    const next = Math.min(width / canvas.width, height / canvas.height)
+    setDisplayScale(next)
+    engine.setDisplayScale(next)
   }
 
   const handleDone = () => {
     try {
-      onDone(exportDrawing(engine.strokes, engine.canvasSize))
+      onDone(exportDrawing(engine.strokes, engine.canvas, {backgroundImage}))
     } catch (e) {
       onError?.(e)
     }
@@ -49,17 +54,16 @@ export function DrawSurface({
   return (
     <View style={styles.root}>
       <View style={styles.canvasArea} onLayout={onLayout}>
-        {viewSize > 0 && (
+        {displayScale > 0 && (
           <GestureDetector gesture={engine.gesture}>
-            <View
-              collapsable={false}
-              style={{width: viewSize, height: viewSize}}>
+            <View collapsable={false}>
               <DrawingCanvas
                 strokes={engine.strokes}
                 livePath={engine.livePath}
                 liveBrush={engine.brush}
-                canvasSize={engine.canvasSize}
-                viewSize={viewSize}
+                canvas={engine.canvas}
+                displayScale={displayScale}
+                backgroundImage={backgroundImage}
               />
             </View>
           </GestureDetector>

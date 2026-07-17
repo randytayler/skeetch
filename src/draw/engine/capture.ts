@@ -20,9 +20,9 @@ import {type Point} from './types'
 
 export type StrokeCaptureConfig = {
   /**
-   * Display scale = viewSize / canvasSize. Touches arrive in view space; the
-   * canvas-space coordinate we store is viewCoord / scale (§5: store canvas
-   * space, never screen space).
+   * Display scale: on-screen px per canvas px, uniform in both axes. Touches
+   * arrive in view space; the canvas-space coordinate we store is
+   * viewCoord / scale (§5: store canvas space, never screen space).
    */
   scale: SharedValue<number>
   /** Called once on release with the raw (decimated) canvas-space points. */

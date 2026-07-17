@@ -12,6 +12,7 @@ type Props = {
   onRequestClose: () => void
   onPressShare: () => void
   onPressSave: () => void
+  onPressDraw?: () => void
   imageCount: number
   activeIndex: number
 }
@@ -20,6 +21,7 @@ export function Header({
   onRequestClose,
   onPressShare,
   onPressSave,
+  onPressDraw,
   imageCount,
   activeIndex,
 }: Props) {
@@ -40,7 +42,11 @@ export function Header({
         a.pointer_events_box_none,
         {paddingTop: insets.top + 8},
       ]}>
-      <ImageMenu onPressShare={onPressShare} onPressSave={onPressSave} />
+      <ImageMenu
+        onPressShare={onPressShare}
+        onPressSave={onPressSave}
+        onPressDraw={onPressDraw}
+      />
       <PagerDots count={imageCount} activeIndex={activeIndex} />
       <CircleChromeButton
         icon={CloseIcon}

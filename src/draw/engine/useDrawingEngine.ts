@@ -18,7 +18,7 @@ import {
   redo as redoHistory,
   undo as undoHistory,
 } from './history'
-import {type Brush, type Point, type Stroke} from './types'
+import {type Brush, type CanvasSize, type Point, type Stroke} from './types'
 
 export const DEFAULT_BRUSH: Brush = {
   color: '#111111',
@@ -38,22 +38,24 @@ function makeStroke(brush: Brush, points: Point[]): Stroke {
   }
 }
 
-export function useDrawingEngine(canvasSize: number) {
+export function useDrawingEngine(canvas: CanvasSize) {
   const [history, setHistory] = useState<HistoryState>(emptyHistory)
   const [brush, setBrush] = useState<Brush>(DEFAULT_BRUSH)
 
-  // Display scale (viewSize / canvasSize); the surface reports it on layout.
+  // Display scale (on-screen px per canvas px); the surface reports it on layout.
   const scale = useSharedValue(1)
 
   /**
-   * Report the on-screen size of the (square) canvas. Kept as a setter rather
-   * than exposing the shared value so callers never mutate engine internals.
+   * Report the uniform scale at which the canvas is displayed. Kept as a setter
+   * rather than exposing the shared value so callers never mutate engine
+   * internals. The scale is uniform in both axes — the canvas is fit into the
+   * available area, never stretched, so stored points stay in true canvas space.
    */
-  const setViewSize = useCallback(
-    (size: number) => {
-      scale.value = size / canvasSize
+  const setDisplayScale = useCallback(
+    (next: number) => {
+      scale.value = next
     },
-    [scale, canvasSize],
+    [scale],
   )
 
   const onStrokeEnd = useCallback(
@@ -92,8 +94,8 @@ export function useDrawingEngine(canvasSize: number) {
       brush,
       gesture,
       livePath,
-      setViewSize,
-      canvasSize,
+      setDisplayScale,
+      canvas,
       canUndo: canUndo(history),
       canRedo: canRedo(history),
       undo,
@@ -109,8 +111,8 @@ export function useDrawingEngine(canvasSize: number) {
       brush,
       gesture,
       livePath,
-      setViewSize,
-      canvasSize,
+      setDisplayScale,
+      canvas,
       undo,
       redo,
       clear,

@@ -38,7 +38,10 @@ import * as ScreenOrientation from 'expo-screen-orientation'
 import {type Dimensions} from '#/lib/media/types'
 import {useTheme} from '#/alf'
 import {setSystemUITheme} from '#/alf/util/systemUI'
-import {type Lightbox} from '#/components/Lightbox/state'
+import {
+  type Lightbox,
+  type LightboxMetricsContext,
+} from '#/components/Lightbox/state'
 import {useAnalytics} from '#/analytics'
 import {IS_IOS} from '#/env'
 import {PlatformInfo} from '../../../../modules/expo-bluesky-swiss-army'
@@ -82,11 +85,13 @@ export default function ImageViewRoot({
   onRequestClose,
   onPressSave,
   onPressShare,
+  onPressDraw,
 }: {
   lightbox: Lightbox | null
   onRequestClose: () => void
   onPressSave: (uri: string) => void
   onPressShare: (uri: string) => void
+  onPressDraw?: (image: ImageSource, metrics: LightboxMetricsContext) => void
 }) {
   'use no memo'
   const ref = useAnimatedRef<View>()
@@ -203,6 +208,7 @@ export default function ImageViewRoot({
             onRequestClose={onRequestClose}
             onPressSave={onPressSave}
             onPressShare={onPressShare}
+            onPressDraw={onPressDraw}
             onFlyAway={onFlyAway}
             safeAreaRef={ref}
             openProgress={openProgress}
@@ -222,6 +228,7 @@ function ImageView({
   onRequestClose,
   onPressSave,
   onPressShare,
+  onPressDraw,
   onFlyAway,
   safeAreaRef,
   openProgress,
@@ -234,6 +241,7 @@ function ImageView({
   onRequestClose: () => void
   onPressSave: (uri: string) => void
   onPressShare: (uri: string) => void
+  onPressDraw?: (image: ImageSource, metrics: LightboxMetricsContext) => void
   onFlyAway: () => void
   safeAreaRef: AnimatedRef<View>
   openProgress: SharedValue<number>
@@ -443,6 +451,13 @@ function ImageView({
             onRequestClose={handleRequestClose}
             onPressShare={() => onPressShare(images[imageIndex].uri)}
             onPressSave={() => onPressSave(images[imageIndex].uri)}
+            onPressDraw={
+              // Only offered for post photo embeds (§8.2) — metricsContext
+              // is unset for avatars, banners, and other non-post contexts.
+              onPressDraw && metricsContext
+                ? () => onPressDraw(images[imageIndex], metricsContext)
+                : undefined
+            }
             imageCount={images.length}
             activeIndex={imageIndex}
           />

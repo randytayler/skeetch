@@ -12,10 +12,10 @@
  */
 
 import {Directory, File, Paths} from 'expo-file-system'
-import {ImageFormat, Skia} from '@shopify/react-native-skia'
+import {ImageFormat, Skia, type SkImage} from '@shopify/react-native-skia'
 
 import {rasterizeStrokes} from './render'
-import {type Stroke} from './types'
+import {type CanvasSize, type Stroke} from './types'
 
 /** Cache subdirectory for flattened drawings, relative to Paths.cache. */
 const EXPORT_DIR = 'skeetch'
@@ -41,42 +41,64 @@ export type ExportOptions = {
   background?: string | null
   /**
    * PNG preserves ink crisply for blank-canvas drawings. JPEG is smaller and
-   * preferable once a photo layer exists (§6.6).
+   * preferable once a photo layer exists (§6.6). Defaults to JPEG when a
+   * background image is present, PNG otherwise.
    */
   format?: ExportFormat
+  /** Locked source photo composited beneath the ink (§6.5 layer 0). */
+  backgroundImage?: SkImage | null
 }
 
 /**
- * Flatten strokes to an image file at full canvas resolution and return its
+ * Flatten a drawing to an image file at full canvas resolution and return its
  * URI. Synchronous: the current expo-file-system write API is sync, and the
  * encode is a one-shot cost on an explicit user action.
  */
 export function exportDrawing(
   strokes: Stroke[],
-  canvasSize: number,
+  canvas: CanvasSize,
   options: ExportOptions = {},
 ): ExportResult {
-  const {background = '#ffffff', format = 'png'} = options
+  const {
+    background = '#ffffff',
+    backgroundImage = null,
+    // Photo-backed drawings encode smaller as JPEG (§6.6).
+    format = backgroundImage ? 'jpeg' : 'png',
+  } = options
+  const {width, height} = canvas
 
   /*
    * Ink is rasterized onto its own transparent surface first. Erase strokes
    * composite with BlendMode.Clear, so they must only ever clear ink — painting
-   * the background first would let the eraser punch holes straight through it.
+   * the background first would let the eraser punch holes straight through it,
+   * or worse, through the source photo.
    */
-  const ink = rasterizeStrokes(strokes, canvasSize, canvasSize)
+  const ink = rasterizeStrokes(strokes, width, height)
   if (!ink) {
     throw new Error('exportDrawing: could not allocate an offscreen surface')
   }
 
   let image = ink
-  if (background) {
-    const surface = Skia.Surface.MakeOffscreen(canvasSize, canvasSize)
+  if (background || backgroundImage) {
+    const surface = Skia.Surface.MakeOffscreen(width, height)
     if (!surface) {
       throw new Error('exportDrawing: could not allocate a compositing surface')
     }
-    const canvas = surface.getCanvas()
-    canvas.drawColor(Skia.Color(background))
-    canvas.drawImage(ink, 0, 0)
+    const c = surface.getCanvas()
+    // Paint the flat background first so any transparent edge of the photo
+    // still lands on something opaque.
+    if (background) {
+      c.drawColor(Skia.Color(background))
+    }
+    if (backgroundImage) {
+      c.drawImageRect(
+        backgroundImage,
+        Skia.XYWHRect(0, 0, backgroundImage.width(), backgroundImage.height()),
+        Skia.XYWHRect(0, 0, width, height),
+        Skia.Paint(),
+      )
+    }
+    c.drawImage(ink, 0, 0)
     surface.flush()
     image = surface.makeImageSnapshot()
   }
@@ -100,7 +122,7 @@ export function exportDrawing(
   file.create()
   file.write(bytes)
 
-  return {uri: file.uri, width: canvasSize, height: canvasSize, format}
+  return {uri: file.uri, width, height, format}
 }
 
 /**

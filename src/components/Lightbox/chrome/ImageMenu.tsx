@@ -15,12 +15,15 @@ import {ArrowShareRight_Stroke2_Corner2_Rounded as ShareIcon} from '#/components
 import {type Props as IconProps} from '#/components/icons/common'
 import {DotGrid3x1_Stroke2_Corner0_Rounded as DotsIcon} from '#/components/icons/DotGrid'
 import {Download_Stroke2_Corner0_Rounded as DownloadIcon} from '#/components/icons/Download'
+import {PencilLine_Stroke2_Corner0_Rounded as DrawIcon} from '#/components/icons/Pencil'
 import {Text} from '#/components/Typography'
 import {CircleChromeButton} from './CircleChromeButton'
 
 type Props = {
   onPressShare: () => void
   onPressSave: () => void
+  /** Only set for images embedded in a post (§8.2) — never avatars or banners. */
+  onPressDraw?: () => void
 }
 
 type Anchor = {x: number; y: number; width: number; height: number}
@@ -33,7 +36,7 @@ const ITEM_TEXT = '#f9fafb'
 const SPRING_IN = {damping: 18, mass: 0.6, stiffness: 240}
 const TIMING_OUT = {duration: 150}
 
-export function ImageMenu({onPressShare, onPressSave}: Props) {
+export function ImageMenu({onPressShare, onPressSave, onPressDraw}: Props) {
   const {t: l} = useLingui()
   const triggerRef = useRef<View>(null)
   const [isMounted, setIsMounted] = useState(false)
@@ -98,6 +101,13 @@ export function ImageMenu({onPressShare, onPressSave}: Props) {
               label={l`Save image`}
               onPress={() => runAction(onPressSave)}
             />
+            {onPressDraw && (
+              <MenuItem
+                icon={DrawIcon}
+                label={l`Draw on this`}
+                onPress={() => runAction(onPressDraw)}
+              />
+            )}
           </MenuCard>
         )}
       </Modal>

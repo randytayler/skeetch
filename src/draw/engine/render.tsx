@@ -31,7 +31,7 @@ import {
 } from '@shopify/react-native-skia'
 
 import {computeWidths} from './geometry'
-import {type Brush, type Point, type Stroke} from './types'
+import {type Brush, type CanvasSize, type Point, type Stroke} from './types'
 
 export const CHECKPOINT_INTERVAL = 25
 
@@ -160,25 +160,46 @@ export type DrawingCanvasProps = {
   strokes: Stroke[]
   livePath: SharedValue<string>
   liveBrush: Brush
-  canvasSize: number
-  viewSize: number
+  canvas: CanvasSize
+  /** On-screen px per canvas px. Uniform, so canvas space is never distorted. */
+  displayScale: number
+  /** Locked source photo drawn beneath the ink (§6.5 layer 0). */
+  backgroundImage?: SkImage | null
 }
 
 export function DrawingCanvas({
   strokes,
   livePath,
   liveBrush,
-  canvasSize,
-  viewSize,
+  canvas,
+  displayScale,
+  backgroundImage,
 }: DrawingCanvasProps) {
-  const checkpoint = useCheckpoint(strokes, canvasSize, canvasSize)
-  const displayScale = viewSize / canvasSize
+  const checkpoint = useCheckpoint(strokes, canvas.width, canvas.height)
   const tail = checkpoint ? strokes.slice(checkpoint.count) : strokes
   const liveIsErase = liveBrush.mode === 'erase'
 
   return (
-    <Canvas style={{width: viewSize, height: viewSize}}>
+    <Canvas
+      style={{
+        width: canvas.width * displayScale,
+        height: canvas.height * displayScale,
+      }}>
       <Group transform={[{scale: displayScale}]}>
+        {/*
+         * Layer 0: the source photo, outside the ink layer so the eraser can
+         * never clear it (§6.5 — it is locked).
+         */}
+        {backgroundImage && (
+          <Image
+            image={backgroundImage}
+            x={0}
+            y={0}
+            width={canvas.width}
+            height={canvas.height}
+            fit="fill"
+          />
+        )}
         {/* Isolated ink layer so eraser Clear stays within the ink. */}
         <Group layer={<Paint />}>
           {checkpoint && (
@@ -186,8 +207,8 @@ export function DrawingCanvas({
               image={checkpoint.image}
               x={0}
               y={0}
-              width={canvasSize}
-              height={canvasSize}
+              width={canvas.width}
+              height={canvas.height}
               fit="none"
             />
           )}
