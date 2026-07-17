@@ -1,3 +1,4 @@
+import {Keyboard} from 'react-native'
 import {useLingui} from '@lingui/react/macro'
 
 import {atoms as a, useTheme} from '#/alf'
@@ -24,10 +25,21 @@ export function DrawButton({
     return null
   }
 
+  const onPressDraw = () => {
+    /*
+     * The composer's text input keeps the soft keyboard up, which would cover
+     * the canvas toolbar. Same guard the media picker uses.
+     */
+    if (IS_NATIVE && Keyboard.isVisible()) {
+      Keyboard.dismiss()
+    }
+    onPress()
+  }
+
   return (
     <Button
       testID="openDrawButton"
-      onPress={onPress}
+      onPress={onPressDraw}
       label={l`Draw`}
       accessibilityHint={l`Opens a canvas to draw an image for this post`}
       style={a.p_sm}
