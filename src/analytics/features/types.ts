@@ -1,3 +1,7 @@
+/**
+ * If a feature is in the beta program, be sure to add a localized description
+ * for it via getFeatureDescription().
+ */
 export enum Features {
   // core flags
   IsBskyTeam = 'is_bsky_team',
@@ -14,6 +18,7 @@ export enum Features {
   PostGalleryEmbedEnable = 'post_gallery_embed:enable',
   PostThreadKnownLikersEnable = 'post_thread:known_likers:enable',
   PostThreadKnownLikersFetchEnable = 'post_thread:known_likers:fetch:enable',
+  CustomLogoJapanEnable = 'custom_logo:japan:enable',
 
   AATest = 'aa-test',
 }
