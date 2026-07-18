@@ -46,6 +46,7 @@ export function DrawOnImageFlow({
   const [source, setSource] = useState<SourceImage | 'error' | null>(null)
   // Stable draft identity for this session so autosaves accumulate into one
   // draft (§7) rather than a new one per save.
+  // eslint-disable-next-line react/hook-use-state
   const [draftMeta] = useState(() => ({id: nanoid(), createdAt: Date.now()}))
 
   useEffect(() => {
