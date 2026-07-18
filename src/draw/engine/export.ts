@@ -50,6 +50,58 @@ export type ExportOptions = {
 }
 
 /**
+ * Composite a drawing's layers into a single flat `SkImage` at full canvas
+ * resolution (§6.5, §6.6): flat background color, then the source photo (if
+ * any), then the ink on top. Shared by file export and thumbnail generation so
+ * both flatten identically. Returns the image; the caller encodes it.
+ */
+export function composeDrawing(
+  strokes: Stroke[],
+  canvas: CanvasSize,
+  options: Pick<ExportOptions, 'background' | 'backgroundImage'> = {},
+): SkImage {
+  const {background = '#ffffff', backgroundImage = null} = options
+  const {width, height} = canvas
+
+  /*
+   * Ink is rasterized onto its own transparent surface first. Erase strokes
+   * composite with BlendMode.Clear, so they must only ever clear ink — painting
+   * the background first would let the eraser punch holes straight through it,
+   * or worse, through the source photo.
+   */
+  const ink = rasterizeStrokes(strokes, width, height)
+  if (!ink) {
+    throw new Error('composeDrawing: could not allocate an offscreen surface')
+  }
+
+  if (!background && !backgroundImage) {
+    return ink
+  }
+
+  const surface = Skia.Surface.MakeOffscreen(width, height)
+  if (!surface) {
+    throw new Error('composeDrawing: could not allocate a compositing surface')
+  }
+  const c = surface.getCanvas()
+  // Paint the flat background first so any transparent edge of the photo
+  // still lands on something opaque.
+  if (background) {
+    c.drawColor(Skia.Color(background))
+  }
+  if (backgroundImage) {
+    c.drawImageRect(
+      backgroundImage,
+      Skia.XYWHRect(0, 0, backgroundImage.width(), backgroundImage.height()),
+      Skia.XYWHRect(0, 0, width, height),
+      Skia.Paint(),
+    )
+  }
+  c.drawImage(ink, 0, 0)
+  surface.flush()
+  return surface.makeImageSnapshot()
+}
+
+/**
  * Flatten a drawing to an image file at full canvas resolution and return its
  * URI. Synchronous: the current expo-file-system write API is sync, and the
  * encode is a one-shot cost on an explicit user action.
@@ -67,41 +119,7 @@ export function exportDrawing(
   } = options
   const {width, height} = canvas
 
-  /*
-   * Ink is rasterized onto its own transparent surface first. Erase strokes
-   * composite with BlendMode.Clear, so they must only ever clear ink — painting
-   * the background first would let the eraser punch holes straight through it,
-   * or worse, through the source photo.
-   */
-  const ink = rasterizeStrokes(strokes, width, height)
-  if (!ink) {
-    throw new Error('exportDrawing: could not allocate an offscreen surface')
-  }
-
-  let image = ink
-  if (background || backgroundImage) {
-    const surface = Skia.Surface.MakeOffscreen(width, height)
-    if (!surface) {
-      throw new Error('exportDrawing: could not allocate a compositing surface')
-    }
-    const c = surface.getCanvas()
-    // Paint the flat background first so any transparent edge of the photo
-    // still lands on something opaque.
-    if (background) {
-      c.drawColor(Skia.Color(background))
-    }
-    if (backgroundImage) {
-      c.drawImageRect(
-        backgroundImage,
-        Skia.XYWHRect(0, 0, backgroundImage.width(), backgroundImage.height()),
-        Skia.XYWHRect(0, 0, width, height),
-        Skia.Paint(),
-      )
-    }
-    c.drawImage(ink, 0, 0)
-    surface.flush()
-    image = surface.makeImageSnapshot()
-  }
+  const image = composeDrawing(strokes, canvas, {background, backgroundImage})
 
   const bytes = image.encodeToBytes(
     format === 'jpeg' ? ImageFormat.JPEG : ImageFormat.PNG,
@@ -123,6 +141,57 @@ export function exportDrawing(
   file.write(bytes)
 
   return {uri: file.uri, width, height, format}
+}
+
+/** Longest edge of a draft thumbnail, in px. Small enough to keep the gallery
+ * index light, large enough to stay crisp on a grid card. */
+export const THUMBNAIL_MAX_EDGE = 256
+
+/**
+ * Render a small PNG preview of a drawing for the draft gallery (§7). Composites
+ * exactly as the real export does (on white, photo beneath ink) then downscales
+ * to `THUMBNAIL_MAX_EDGE` on the long edge. Returns encoded PNG bytes; the
+ * caller writes them wherever the draft's files live.
+ */
+export function renderThumbnailBytes(
+  strokes: Stroke[],
+  canvas: CanvasSize,
+  options: Pick<ExportOptions, 'backgroundImage'> = {},
+): Uint8Array {
+  const full = composeDrawing(strokes, canvas, {
+    background: '#ffffff',
+    backgroundImage: options.backgroundImage ?? null,
+  })
+
+  const scale = Math.min(
+    1,
+    THUMBNAIL_MAX_EDGE / Math.max(canvas.width, canvas.height),
+  )
+  const w = Math.max(1, Math.round(canvas.width * scale))
+  const h = Math.max(1, Math.round(canvas.height * scale))
+
+  const surface = Skia.Surface.MakeOffscreen(w, h)
+  if (!surface) {
+    throw new Error('renderThumbnailBytes: could not allocate a surface')
+  }
+  const paint = Skia.Paint()
+  // Smooth the downscale so ink edges don't alias into jaggies on the card.
+  paint.setAntiAlias(true)
+  surface
+    .getCanvas()
+    .drawImageRect(
+      full,
+      Skia.XYWHRect(0, 0, full.width(), full.height()),
+      Skia.XYWHRect(0, 0, w, h),
+      paint,
+    )
+  surface.flush()
+
+  const bytes = surface.makeImageSnapshot().encodeToBytes(ImageFormat.PNG, 100)
+  if (!bytes) {
+    throw new Error('renderThumbnailBytes: failed to encode PNG')
+  }
+  return bytes
 }
 
 /**

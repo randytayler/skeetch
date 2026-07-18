@@ -136,8 +136,8 @@ import * as Prompt from '#/components/Prompt'
 import * as Toast from '#/components/Toast'
 import {Text} from '#/components/Typography'
 import {useAnalytics} from '#/analytics'
+import {ComposerDrawFlow} from '#/draw/components/ComposerDrawFlow'
 import {DrawButton} from '#/draw/components/DrawButton'
-import {DrawOverlay} from '#/draw/components/DrawOverlay'
 import {type ExportResult} from '#/draw/engine/export'
 import {
   IS_ANDROID,
@@ -2324,12 +2324,12 @@ function ComposerFooter({
           style={{width: 65}}
         />
       </View>
-      {/* Portaled above the composer; nesting here keeps the upstream diff small. */}
+      {/* skeetch: draw entry point. Portaled above the composer; nesting here keeps the upstream diff small. */}
       {isDrawing && (
         <Portal>
-          <DrawOverlay
-            onDone={result => void onDrawDone(result)}
-            onCancel={() => setIsDrawing(false)}
+          <ComposerDrawFlow
+            onAttach={result => void onDrawDone(result)}
+            onClose={() => setIsDrawing(false)}
             onError={e => {
               setIsDrawing(false)
               logger.error('drawing export failed', {

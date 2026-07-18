@@ -2,9 +2,9 @@ import {StyleSheet, View} from 'react-native'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {type SkImage} from '@shopify/react-native-skia'
 
-import {DrawSurface} from '#/draw/components/DrawSurface'
+import {type DrawPersistence, DrawSurface} from '#/draw/components/DrawSurface'
 import {type ExportResult} from '#/draw/engine/export'
-import {type CanvasSize} from '#/draw/engine/types'
+import {type CanvasSize, type Stroke} from '#/draw/engine/types'
 
 /**
  * Full-screen drawing surface shown over the composer (DESIGN.md §8.1) or, for
@@ -23,12 +23,16 @@ export function DrawOverlay({
   onError,
   canvas,
   backgroundImage,
+  initialStrokes,
+  persistence,
 }: {
   onDone: (result: ExportResult) => void
   onCancel: () => void
   onError?: (e: unknown) => void
   canvas?: CanvasSize
   backgroundImage?: SkImage | null
+  initialStrokes?: Stroke[]
+  persistence?: DrawPersistence
 }) {
   const insets = useSafeAreaInsets()
 
@@ -46,6 +50,8 @@ export function DrawOverlay({
         onError={onError}
         canvas={canvas}
         backgroundImage={backgroundImage}
+        initialStrokes={initialStrokes}
+        persistence={persistence}
       />
     </View>
   )

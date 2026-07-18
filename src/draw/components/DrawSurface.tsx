@@ -6,8 +6,27 @@ import {type SkImage} from '@shopify/react-native-skia'
 import {Toolbar} from '#/draw/components/Toolbar'
 import {exportDrawing, type ExportResult} from '#/draw/engine/export'
 import {DrawingCanvas} from '#/draw/engine/render'
-import {type CanvasSize, DEFAULT_CANVAS} from '#/draw/engine/types'
+import {
+  type CanvasSize,
+  DEFAULT_CANVAS,
+  type SourcePost,
+  type Stroke,
+} from '#/draw/engine/types'
 import {useDrawingEngine} from '#/draw/engine/useDrawingEngine'
+import {useDraft} from '#/draw/storage/useDraft'
+
+/**
+ * Identifies the draft a surface autosaves to. Present for real drawing
+ * sessions (composer, draw-on-image); absent for the dev harness, which has
+ * nowhere to persist.
+ */
+export type DrawPersistence = {
+  draftId: string
+  createdAt: number
+  sourcePost?: SourcePost
+  /** Source-photo URI to copy into the draft folder (§7). */
+  sourceImageUri?: string
+}
 
 /**
  * The drawing surface: canvas plus controls. Used by the composer's draw
@@ -24,6 +43,8 @@ export function DrawSurface({
   onError,
   canvas = DEFAULT_CANVAS,
   backgroundImage,
+  initialStrokes,
+  persistence,
 }: {
   onDone: (result: ExportResult) => void
   onCancel: () => void
@@ -31,9 +52,24 @@ export function DrawSurface({
   canvas?: CanvasSize
   /** Locked source photo drawn beneath the ink (§8.2). */
   backgroundImage?: SkImage | null
+  /** Committed strokes to seed a resumed draft with (§7). */
+  initialStrokes?: Stroke[]
+  /** When set, the surface autosaves to this draft; omit for the dev harness. */
+  persistence?: DrawPersistence
 }) {
-  const engine = useDrawingEngine(canvas)
+  const engine = useDrawingEngine(canvas, initialStrokes)
   const [displayScale, setDisplayScale] = useState(0)
+
+  useDraft({
+    draftId: persistence?.draftId ?? '',
+    createdAt: persistence?.createdAt ?? 0,
+    strokes: engine.strokes,
+    canvas,
+    sourcePost: persistence?.sourcePost,
+    sourceImageUri: persistence?.sourceImageUri,
+    backgroundImage,
+    enabled: !!persistence,
+  })
 
   const onLayout = (e: LayoutChangeEvent) => {
     const {width, height} = e.nativeEvent.layout

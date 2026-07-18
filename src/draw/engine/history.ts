@@ -27,6 +27,19 @@ export function emptyHistory(): HistoryState {
   return {strokes: [], undo: [], redo: []}
 }
 
+/**
+ * Seed history from an already-committed stroke list (a resumed draft, §7).
+ * Each stroke becomes an `add` command so undo peels the loaded drawing back
+ * exactly as if it had just been drawn.
+ */
+export function historyFromStrokes(strokes: Stroke[]): HistoryState {
+  return {
+    strokes: [...strokes],
+    undo: strokes.map(stroke => ({type: 'add', stroke})),
+    redo: [],
+  }
+}
+
 /** Commit a new stroke. Clears the redo stack (§6.4). */
 export function addStroke(state: HistoryState, stroke: Stroke): HistoryState {
   return {

@@ -11,6 +11,7 @@ import {
   canUndo,
   clearStrokes,
   emptyHistory,
+  historyFromStrokes,
   redo,
   undo,
 } from '../history'
@@ -109,5 +110,36 @@ describe('undo/redo command stack (§6.4)', () => {
     expect(s.strokes).toEqual([])
     s = undo(s)
     expect(s.strokes.map(x => x.id)).toEqual(['a', 'b'])
+  })
+})
+
+describe('resuming a draft (§7)', () => {
+  it('seeds history so each loaded stroke is individually undoable', () => {
+    let s = historyFromStrokes([
+      strokeFrom('a', [pt(0, 0)]),
+      strokeFrom('b', [pt(1, 1)]),
+    ])
+    expect(s.strokes.map(x => x.id)).toEqual(['a', 'b'])
+    expect(canUndo(s)).toBe(true)
+    expect(canRedo(s)).toBe(false)
+
+    s = undo(s)
+    expect(s.strokes.map(x => x.id)).toEqual(['a'])
+    s = undo(s)
+    expect(s.strokes).toEqual([])
+    expect(canUndo(s)).toBe(false)
+  })
+
+  it('lets a resumed drawing accept new strokes on top', () => {
+    let s = historyFromStrokes([strokeFrom('a', [pt(0, 0)])])
+    s = addStroke(s, strokeFrom('b', [pt(2, 2)]))
+    expect(s.strokes.map(x => x.id)).toEqual(['a', 'b'])
+    s = undo(s)
+    expect(s.strokes.map(x => x.id)).toEqual(['a'])
+  })
+
+  it('starts empty for an empty stroke list', () => {
+    const s = historyFromStrokes([])
+    expect(s).toEqual(emptyHistory())
   })
 })

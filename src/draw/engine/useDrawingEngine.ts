@@ -14,6 +14,7 @@ import {
   canUndo,
   clearStrokes,
   emptyHistory,
+  historyFromStrokes,
   type HistoryState,
   redo as redoHistory,
   undo as undoHistory,
@@ -38,8 +39,17 @@ function makeStroke(brush: Brush, points: Point[]): Stroke {
   }
 }
 
-export function useDrawingEngine(canvas: CanvasSize) {
-  const [history, setHistory] = useState<HistoryState>(emptyHistory)
+export function useDrawingEngine(
+  canvas: CanvasSize,
+  initialStrokes?: Stroke[],
+) {
+  // Seed from a resumed draft's strokes (§7) or start empty. The initializer
+  // runs once; the draft is fully loaded before this hook mounts.
+  const [history, setHistory] = useState<HistoryState>(() =>
+    initialStrokes && initialStrokes.length
+      ? historyFromStrokes(initialStrokes)
+      : emptyHistory(),
+  )
   const [brush, setBrush] = useState<Brush>(DEFAULT_BRUSH)
 
   // Display scale (on-screen px per canvas px); the surface reports it on layout.

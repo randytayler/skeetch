@@ -43,16 +43,31 @@ export async function fetchSourceImage(uri: string): Promise<SourceImage> {
     idempotent: true,
   })
 
-  const bytes = await downloaded.bytes()
-  const data = Skia.Data.fromBytes(bytes)
-  const image = Skia.Image.MakeImageFromEncoded(data)
-  if (!image) {
-    throw new Error('fetchSourceImage: failed to decode downloaded image')
-  }
+  const image = decodeImageBytes(await downloaded.bytes())
 
   return {
     image,
     canvas: canvasForImage(image.width(), image.height()),
     localUri: downloaded.uri,
   }
+}
+
+/**
+ * Decode encoded image bytes into an SkImage. Shared by the initial download
+ * and by draft resume (§7). Throws if the bytes can't be decoded.
+ */
+export function decodeImageBytes(bytes: Uint8Array): SkImage {
+  const data = Skia.Data.fromBytes(bytes)
+  const image = Skia.Image.MakeImageFromEncoded(data)
+  if (!image) {
+    throw new Error('decodeImageBytes: failed to decode image')
+  }
+  return image
+}
+
+/** Re-decode a draft's persisted source photo from its local URI (§7 resume). */
+export async function loadSourceImageFromUri(
+  localUri: string,
+): Promise<SkImage> {
+  return decodeImageBytes(await new File(localUri).bytes())
 }

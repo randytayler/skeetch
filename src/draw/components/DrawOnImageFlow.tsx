@@ -2,6 +2,7 @@ import {useEffect, useState} from 'react'
 import {StyleSheet, View} from 'react-native'
 import {AppBskyFeedPost} from '@atproto/api'
 import {useLingui} from '@lingui/react/macro'
+import {nanoid} from 'nanoid/non-secure'
 
 import {usePostQuery} from '#/state/queries/post'
 import {type ComposerOptsPostRef} from '#/state/shell/composer'
@@ -43,6 +44,9 @@ export function DrawOnImageFlow({
   const {t: l} = useLingui()
   const postQuery = usePostQuery(postUri)
   const [source, setSource] = useState<SourceImage | 'error' | null>(null)
+  // Stable draft identity for this session so autosaves accumulate into one
+  // draft (§7) rather than a new one per save.
+  const [draftMeta] = useState(() => ({id: nanoid(), createdAt: Date.now()}))
 
   useEffect(() => {
     let cancelled = false
@@ -82,10 +86,22 @@ export function DrawOnImageFlow({
     ? post.record
     : undefined
 
+  const sourcePost: SourcePost = {
+    uri: post.uri,
+    cid: post.cid,
+    authorHandle: post.author.handle,
+  }
+
   return (
     <DrawOverlay
       canvas={source.canvas}
       backgroundImage={source.image}
+      persistence={{
+        draftId: draftMeta.id,
+        createdAt: draftMeta.createdAt,
+        sourcePost,
+        sourceImageUri: source.localUri,
+      }}
       onCancel={onCancel}
       onDone={result =>
         onDone({
@@ -98,11 +114,7 @@ export function DrawOnImageFlow({
             embed: post.embed,
             langs: record?.langs,
           },
-          sourcePost: {
-            uri: post.uri,
-            cid: post.cid,
-            authorHandle: post.author.handle,
-          },
+          sourcePost,
         })
       }
     />
